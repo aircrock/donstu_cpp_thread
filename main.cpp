@@ -54,7 +54,11 @@ int main() {
       t.join();
     }
   }
-
+{
+  std::ostringstream oss;
+  oss << "counter = " << counter << "\n";
+  logger.writeLine(oss.str());
+}
   logger.writeLine("main: all threads finished\n");
 
   return 0;

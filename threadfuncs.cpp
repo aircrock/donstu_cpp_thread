@@ -7,7 +7,7 @@
 #include <syscall.h>
 //#include <windows.h>
 #include <sys/types.h>
-
+std::atomic<int> counter{0};
 Logger::Logger(const std::string& filename)
   : file_(filename, std::ios::out | std::ios::trunc)
 {
@@ -44,6 +44,9 @@ void about() {
 }
 
 void funcThread(const ThreadArgs& args, Logger& logger) {
+  for (int i = 0; i < 100000; ++i) {
+    counter++;
+  }
   for (int i = 0; i < COUNT_ITERATIONS; ++i) {
     std::ostringstream oss;
 

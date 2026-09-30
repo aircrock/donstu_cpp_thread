@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <sstream>
+#include <unistd.h>
 
 #include "threadfuncs.h"
 
@@ -10,18 +12,25 @@ int main() {
   // Open log file
   Logger logger("output.log");
 
-  std::cout << "main: pid = " << getThreadID()
-            << ", opened file: 'output.log'\n";
+  {
+    std::ostringstream oss;
+    oss << "main: pid = " << ::getpid()
+        << ", opened file: 'output.log'\n";
+    logger.writeLine(oss.str());
+  }
 
   // args for threads
-  std::vector<ThreadArgs> args = {
-    {1, "First"},
-    {2, "Second"},
-    {3, "Third"},
-    {4, "Fourth"},
-  };
+  std::vector<ThreadArgs> args(COUNT_THREADS);
 
-  // thread are starting
+  for (int i = 0; i < COUNT_THREADS; ++i) {
+    std::ostringstream oss;
+    oss << "T" << i;
+
+    args[i].id = i;
+    args[i].tag = oss.str();
+  }
+
+  // threads are starting
   std::vector<std::thread> threads;
   threads.reserve(COUNT_THREADS);
 
@@ -31,10 +40,12 @@ int main() {
 
   // wait for stop all threads
   for (auto& t : threads) {
-    if (t.joinable()) t.join();
+    if (t.joinable()) {
+      t.join();
+    }
   }
 
-  // close file automatically
-  std::cout << "main: all threads finished, file closed\n";
+  logger.writeLine("main: all threads finished\n");
+
   return 0;
 }

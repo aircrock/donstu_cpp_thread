@@ -1,6 +1,6 @@
 // threadfuncs.cpp
 #include "threadfuncs.h"
-
+#include <thread>
 #include <iostream>
 #include <sstream>
 #include <unistd.h>

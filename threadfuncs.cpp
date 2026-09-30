@@ -47,12 +47,13 @@ void funcThread(const ThreadArgs& args, Logger& logger) {
   for (int i = 0; i < COUNT_ITERATIONS; ++i) {
     std::ostringstream oss;
 
-    oss << "[tag = " << args.tag
-        << "] pid = "  << ::getpid()
-        << " ppid = "  << ::getppid()
-        << " tid = "   << getThreadID()
-        << " iter = "  << i
-        << "\n";
+oss << "[tag = " << args.tag
+    << "] pid = " << ::getpid()
+    << " ppid = " << ::getppid()
+    << " std::thread::id = " << std::this_thread::get_id()
+    << " sys_tid = " << getThreadID()
+    << " iter = " << i
+    << "\n";
     logger.writeLine(oss.str());
 
     // imitation of useful work

@@ -38,6 +38,16 @@ int main() {
     threads.emplace_back(funcThread, std::cref(args[i]), std::ref(logger));
   }
 
+  std::ostringstream oss;
+
+  oss << "thread[0].id = " << threads[0].get_id()
+      << ", thread[1].id = " << threads[1].get_id()
+      << ", equal = "
+      << (threads[0].get_id() == threads[1].get_id())
+      << "\n";
+
+  logger.writeLine(oss.str());
+
   // wait for stop all threads
   for (auto& t : threads) {
     if (t.joinable()) {

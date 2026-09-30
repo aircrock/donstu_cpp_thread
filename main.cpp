@@ -4,6 +4,8 @@
 #include <sstream>
 #include <future>
 #include <string>
+#include <mutex>
+#include <condition_variable>
 #include <unistd.h>
 
 #include "threadfuncs.h"
@@ -36,7 +38,10 @@ int main() {
     logger.writeLine(oss.str());
   }
 
-  // args for threads
+  // =========================================================
+  // Main worker threads
+  // =========================================================
+
   std::vector<ThreadArgs> args(COUNT_THREADS);
 
   for (int i = 0; i < COUNT_THREADS; ++i) {
@@ -47,7 +52,6 @@ int main() {
     args[i].tag = oss.str();
   }
 
-  // threads are starting
   std::vector<std::thread> threads;
   threads.reserve(COUNT_THREADS);
 
@@ -59,7 +63,7 @@ int main() {
     );
   }
 
-  // compare std::thread::id
+  // Compare std::thread::id
   {
     std::ostringstream oss;
 
@@ -72,21 +76,25 @@ int main() {
     logger.writeLine(oss.str());
   }
 
-  // wait for all threads
+  // Wait for worker threads
   for (auto& t : threads) {
     if (t.joinable()) {
       t.join();
     }
   }
 
-  // atomic counter result
+  // Atomic counter result
   {
     std::ostringstream oss;
     oss << "counter = " << counter << "\n";
     logger.writeLine(oss.str());
   }
 
-  // promise / future
+
+  // =========================================================
+  // Promise / future
+  // =========================================================
+
   std::promise<std::string> prom;
   std::future<std::string> fut = prom.get_future();
 
@@ -102,6 +110,93 @@ int main() {
   }
 
   logger.writeLine(result + "\n");
+
+
+  // =========================================================
+  // Producer - Consumer
+  // Buffer size = 1
+  // =========================================================
+
+  std::mutex pcMutex;
+  std::condition_variable cv;
+
+  int buffer = 0;
+  bool ready = false;
+  bool done = false;
+
+  // Consumer
+  std::thread consumer([&]() {
+    while (true) {
+      std::unique_lock<std::mutex> lock(pcMutex);
+
+      cv.wait(lock, [&]() {
+        return ready || done;
+      });
+
+      // Producer finished and there is no value left
+      if (!ready && done) {
+        break;
+      }
+
+      int value = buffer;
+      ready = false;
+
+      // Release mutex before writing to log
+      lock.unlock();
+
+      // Wake producer waiting for empty buffer
+      cv.notify_one();
+
+      std::ostringstream oss;
+      oss << "consumer: value = " << value << "\n";
+      logger.writeLine(oss.str());
+    }
+  });
+
+
+  // Producer
+  std::thread producer([&]() {
+    for (int value = 1; value <= 10; ++value) {
+      std::unique_lock<std::mutex> lock(pcMutex);
+
+      // Wait until previous value has been consumed
+      cv.wait(lock, [&]() {
+        return !ready;
+      });
+
+      buffer = value;
+      ready = true;
+
+      lock.unlock();
+
+      // Tell consumer that a value is ready
+      cv.notify_one();
+    }
+
+    // Wait until consumer takes the last value
+    {
+      std::unique_lock<std::mutex> lock(pcMutex);
+
+      cv.wait(lock, [&]() {
+        return !ready;
+      });
+
+      done = true;
+    }
+
+    // Wake consumer so it can terminate
+    cv.notify_one();
+  });
+
+
+  if (producer.joinable()) {
+    producer.join();
+  }
+
+  if (consumer.joinable()) {
+    consumer.join();
+  }
+
 
   logger.writeLine("main: all threads finished\n");
 
